@@ -11,15 +11,17 @@ import android.view.MotionEvent
 import android.view.View
 
 class TicTacToeView @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
+    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
     private var listener: OnDataPass? = null
     private var cellHeight = 0f
     private var cellWidth = 0f
     private var currentPlayer = CellValue.X
+    private var startingPoint = Pair(0, 0)
+    private var finishingPoint = Pair(0, 0)
+    private var cells = Array(9) { Cell(CellValue.EMPTY) }
+    private var board = Array(3) { Array(3) { "0" } }
 
     fun setOnDataPassListener(listener: OnDataPass) {
         this.listener = listener
@@ -42,22 +44,9 @@ class TicTacToeView @JvmOverloads constructor(
         style = Paint.Style.STROKE
     }
 
-    private var cells = arrayOf(
-        Cell(CellValue.EMPTY),
-        Cell(CellValue.EMPTY),
-        Cell(CellValue.EMPTY),
-        Cell(CellValue.EMPTY),
-        Cell(CellValue.EMPTY),
-        Cell(CellValue.EMPTY),
-        Cell(CellValue.EMPTY),
-        Cell(CellValue.EMPTY),
-        Cell(CellValue.EMPTY)
-    )
-
-    private var board = arrayOf(arrayOf(0, 0, 0), arrayOf(0, 0, 0), arrayOf(0, 0, 0))
-
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
+
         canvas?.let {
             val width = width.toFloat()
             val height = height.toFloat()
@@ -66,16 +55,26 @@ class TicTacToeView @JvmOverloads constructor(
             drawGrid(it)
             drawCell(it)
         }
+        Log.d("cellWidth", cellWidth.toString())
+        Log.d("cellHeight", cellHeight.toString())
+
+        if (checkWin()) {
+            canvas.let {
+                val spx = (cellWidth / 2 + cellWidth * startingPoint.second.toFloat())
+                val spy = (cellHeight / 2 + cellHeight * startingPoint.first.toFloat())
+                val epx = (cellWidth / 2 + cellWidth * finishingPoint.second.toFloat())
+                val epy = (cellHeight / 2 + cellHeight * finishingPoint.first.toFloat())
+                it!!.drawLine(
+                    spx, spy, epx, epy, Opaint
+                )
+            }
+        }
     }
 
     private fun drawGrid(canvas: Canvas?) {
         for (i in 1..2) {
-            if (canvas != null) {
-                canvas.drawLine(cellWidth * i, 0f, cellWidth * i, canvas.height.toFloat(), paint)
-            }
-            if (canvas != null) {
-                canvas.drawLine(0f, cellHeight * i, canvas.width.toFloat(), cellHeight * i, paint)
-            }
+            canvas!!.drawLine(cellWidth * i, 0f, cellWidth * i, canvas.height.toFloat(), paint)
+            canvas.drawLine(0f, cellHeight * i, canvas.width.toFloat(), cellHeight * i, paint)
         }
     }
 
@@ -121,14 +120,14 @@ class TicTacToeView @JvmOverloads constructor(
                     if (cells[index].value == CellValue.EMPTY) {
                         cells[index].value = currentPlayer
                         Log.d("Current player", currentPlayer.toString())
-                        if (currentPlayer.toString() == "X") board[row][column] =
-                            1 else board[row][column] = 2
+                        board[row][column] = currentPlayer.toString()
 
                         currentPlayer =
                             if (currentPlayer == CellValue.X) CellValue.O else CellValue.X
 
                         invalidate()
                         checkWin()
+                        checkDraw()
                     }
                 }
             }
@@ -136,36 +135,58 @@ class TicTacToeView @JvmOverloads constructor(
         return true
     }
 
-    fun checkWin() {
-        val ticTacToeFragment = TicTacToeFragment()
+    fun checkDraw() {
         for (i in 0..2) {
-            if (board[i][0] == board[i][1] && board[i][1] == board[i][2] && board[i][0] != 0) {
-                listener?.onDataPass(board[i][0].toString())
-                return
+            for (j in 0..2) {
+                if (board[i][j] == "0") {
+                    return
+                }
+            }
+        }
+//        listener?.onDataPass("draw")
+    }
+
+    fun checkWin(): Boolean {
+        for (i in 0..2) {
+            if (board[i][0] == board[i][1] && board[i][1] == board[i][2] && board[i][0] != "0") {
+                listener?.onDataPass(board[i][0])
+                startingPoint = Pair(i, 0)
+                finishingPoint = Pair(i, 2)
+                return true
             }
         }
 
         for (i in 0..2) {
-            if (board[0][i] == board[1][i] && board[1][i] == board[2][i] && board[0][i] != 0) {
-                listener?.onDataPass(board[0][i].toString())
-                return
+            if (board[0][i] == board[1][i] && board[1][i] == board[2][i] && board[0][i] != "0") {
+                listener?.onDataPass(board[0][i])
+                startingPoint = Pair(0, i)
+                finishingPoint = Pair(2, i)
+                return true
             }
         }
 
-        if (board[0][0] == board[1][1] && board[1][1] == board[2][2] && board[0][0] != 0) {
-            listener?.onDataPass(board[0][0].toString())
-            return
+        if (board[0][0] == board[1][1] && board[1][1] == board[2][2] && board[0][0] != "0") {
+            listener?.onDataPass(board[0][0])
+            startingPoint = Pair(0, 0)
+            finishingPoint = Pair(2, 2)
+            return true
         }
 
-        if (board[0][2] == board[1][1] && board[1][1] == board[2][0] && board[0][2] != 0) {
-            listener?.onDataPass(board[0][2].toString())
-            return
+        if (board[0][2] == board[1][1] && board[1][1] == board[2][0] && board[0][2] != "0") {
+            listener?.onDataPass(board[0][2])
+            startingPoint = Pair(2, 0)
+            finishingPoint = Pair(0, 2)
+            return true
         }
+        return false
     }
 
     fun reset() {
         currentPlayer = CellValue.X
         cells = Array(9) { Cell(CellValue.EMPTY) }
+        board = Array(3) { Array(3) { "0" } }
+        startingPoint = Pair(0, 0)
+        finishingPoint = Pair(0, 0)
         invalidate()
     }
 }
